@@ -1,48 +1,85 @@
 import Link from 'next/link'
-import HealthBar from '@/components/HealthBar'
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0b0b0c] text-[#ece9e4]">
-      <HealthBar />
-      <header className="border-b border-white/10 px-6 py-4 flex justify-between">
-        <h1 className="font-serif text-xl">
-          Dead Letter <span className="italic text-[#c8553d]">Office</span>
-        </h1>
-        <nav className="flex gap-4 text-xs uppercase tracking-widest">
-          <Link href="/import" className="hover:text-white">
-            Import
-          </Link>
-          <Link href="/leads" className="hover:text-white">
-            Leads
-          </Link>
-          <Link href="/dashboard" className="hover:text-white">
-            Dashboard
-          </Link>
-        </nav>
-      </header>
-      <main className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="font-serif text-4xl leading-tight">
-          Films looking
-          <br />
-          for their <em className="italic text-[#c8553d]">backers</em> — now for email
-        </h2>
-        <p className="mt-4 text-zinc-400 max-w-xl">
-          Import CSV → bounce webhook → auto-quarantine → hygiene score 0-100. Painkiller for domain burn $10-15.
-        </p>
-        <div className="mt-8 grid grid-cols-3 gap-4">
-          <Link href="/import" className="bg-white text-black px-6 py-3 uppercase text-xs tracking-widest text-center">
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-white/10 pb-6">
+        <div>
+          <div className="label">Lab / Archive — 35mm + ledger</div>
+          <h1 className="font-serif text-4xl leading-none mt-2">
+            Forensic hygiene for <em className="italic text-[#c8553d]">outbound</em>
+          </h1>
+          <p className="mt-3 text-sm text-zinc-400 max-w-xl">Import CSV → bounce webhook → auto-quarantine → hygiene 0-100. Painkiller for domain burn $10-15 — mini-Zapmail for Outbox Labs.</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/import" className="bg-white text-black px-5 py-2.5 uppercase text-xs tracking-widest">
             Import CSV
           </Link>
-          <Link href="/dashboard" className="border border-white/20 px-6 py-3 uppercase text-xs tracking-widest text-center">
+          <Link href="/dashboard" className="border border-white/20 px-5 py-2.5 uppercase text-xs tracking-widest">
             View Hygiene
           </Link>
-          <Link href="/webhooks-docs" className="border border-white/20 px-6 py-3 uppercase text-xs tracking-widest text-center">
-            Webhook Docs
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4 mt-6">
+        <div className="tw-card p-5">
+          <div className="label">Total leads</div>
+          <div className="font-serif text-3xl mt-2">1,247</div>
+          <div className="meter mt-3">
+            <span style={{ width: '100%' }} />
+          </div>
+          <div className="text-xs text-zinc-500 mt-2">@unique([userId,email]) — no leading %</div>
+        </div>
+        <div className="tw-card p-5">
+          <div className="label">Hygiene score</div>
+          <div className="font-serif text-3xl mt-2">
+            87<span className="text-sm text-zinc-500"> /100</span>
+          </div>
+          <div className="meter mt-3">
+            <span style={{ width: '87%' }} className="!bg-green-500" />
+          </div>
+          <div className="text-xs text-zinc-500 mt-2">hard + 0.3·soft — RISKY after 3 softs</div>
+        </div>
+        <div className="tw-card p-5">
+          <div className="label">Live backend</div>
+          <div className="font-mono text-sm mt-2">POST /webhooks/bounce</div>
+          <div className="text-xs text-zinc-500 mt-1">HMAC + eventId @unique → SKIP LOCKED worker</div>
+          <Link href="/webhooks-docs" className="inline-flex mt-3 text-xs uppercase tracking-widest border-b border-[#c8553d] pb-1">
+            Curl docs →
           </Link>
         </div>
-        <p className="mt-8 text-xs text-zinc-500">Next.js 14 + TypeScript + Tailwind + Node TS + MySQL Prisma + REST + Docker — forensic lab ink/kraft/Courier</p>
-      </main>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4 mt-4">
+        <div className="tw-card p-5">
+          <div className="label">Separate features — not one dashboard</div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <Link href="/import" className="border border-white/10 p-3 hover:bg-white/5">
+              /import — CSV dropzone
+            </Link>
+            <Link href="/leads" className="border border-white/10 p-3 hover:bg-white/5">
+              /leads — forensic table
+            </Link>
+            <Link href="/dashboard" className="border border-white/10 p-3 hover:bg-white/5">
+              /dashboard — meter + autopsy
+            </Link>
+            <Link href="/webhooks-docs" className="border border-white/10 p-3 hover:bg-white/5">
+              /webhooks-docs — HMAC curl
+            </Link>
+          </div>
+        </div>
+        <div className="tw-card p-5">
+          <div className="label">Stack — different UI types</div>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <span className="tw-badge">Table — forensic leads</span>
+            <span className="tw-badge">Card — hygiene</span>
+            <span className="tw-badge">Meter — score</span>
+            <span className="tw-badge">Stamp — BOUNCED</span>
+            <span className="tw-badge">Mono — 550 5.1.1</span>
+          </div>
+          <p className="mt-3 text-xs text-zinc-500">Different UI types/styles per feature — not bland dashboard.</p>
+        </div>
+      </div>
     </div>
   )
 }
