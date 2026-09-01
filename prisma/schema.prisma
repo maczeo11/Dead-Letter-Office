@@ -1,0 +1,61 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"] // required for alpine Docker
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  leads     Lead[]
+  score     HygieneScore?
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  email     String
+  userId    String
+  status    String   @default("VALID") // VALID | BOUNCED | RISKY
+  softCount Int      @default(0)
+  reason    String?  @db.Text // raw SMTP 550 line — exceeds VARCHAR(191)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  bounces   Bounce[]
+  @@unique([userId, email]) // prefix search uses this — never leading %
+  @@index([userId, status])
+}
+
+model Bounce {
+  id        String   @id @default(uuid())
+  leadId    String
+  eventId   String   @unique // webhook idempotency — retries can't corrupt score
+  type      String   // hard | soft
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  @@index([leadId])
+}
+
+model BounceEvent { // the queue — this is what SKIP LOCKED belongs to
+  id        String   @id @default(uuid())
+  payload   String   @db.Text
+  status    String   @default("PENDING") // PENDING | DONE | FAILED
+  createdAt DateTime @default(now())
+  @@index([status])
+}
+
+model HygieneScore {
+  id      String @id @default(uuid())
+  userId  String @unique
+  total   Int    @default(0)
+  hard    Int    @default(0)
+  soft    Int    @default(0)
+  score   Int    @default(100)
+  user    User   @relation(fields: [userId], references: [id])
+}
