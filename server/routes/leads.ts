@@ -30,26 +30,26 @@ router.post('/import', bearer, upload.single('file'), async (req: AuthRequest, r
   let skipped = 0
   for (let i = 0; i < emails.length; i += CHUNK) {
     const chunk = [...new Set(emails.slice(i, i + CHUNK))]
-    // prefix search uses this — never leading %, and lowercase ensures unique
+    // lowercased on the way in so @@unique([userId, email]) actually dedupes
     const rows = chunk.map(email => ({ email, userId, status: 'VALID' }))
     const result = await prisma.lead.createMany({ data: rows, skipDuplicates: true })
     imported += result.count
     skipped += chunk.length - result.count
   }
 
-  // bump HygieneScore.total in same transaction — keeps score = 100 - ((hard+0.3*soft)/total*100)
-  await prisma.hygieneScore.upsert({
-    where: { userId },
-    update: { total: { increment: imported } },
-    create: { userId, total: imported, hard: 0, soft: 0, score: 100 },
+  // Bump total and recompute in one transaction, so a concurrent import or
+  // bounce can't read a total that doesn't match the score it derives.
+  await prisma.$transaction(async tx => {
+    const hs = await tx.hygieneScore.upsert({
+      where: { userId },
+      update: { total: { increment: imported } },
+      create: { userId, total: imported, hard: 0, soft: 0, score: 100 },
+    })
+    await tx.hygieneScore.update({
+      where: { userId },
+      data: { score: computeScore(hs.total, hs.hard, hs.soft) },
+    })
   })
-
-  // recalc score with current hard/soft (weighted)
-  const hs = await prisma.hygieneScore.findUnique({ where: { userId } })
-  if (hs) {
-    const score = computeScore(hs.total, hs.hard, hs.soft)
-    await prisma.hygieneScore.update({ where: { userId }, data: { score } })
-  }
 
   return res.status(201).json({ imported, skipped, total: emails.length })
 })
@@ -66,7 +66,11 @@ router.get('/', bearer, async (req: AuthRequest, res) => {
 
   const where: Prisma.LeadWhereInput = { userId }
   if (status && status !== 'ALL') where.status = status
-  if (search) where.email = { contains: search } // prefix search uses @@unique — no leading %
+  // Substring match, so "gmail" finds bob@gmail.com. It cannot use the email
+  // index, but every query is scoped by userId (+ status), so @@index([userId,
+  // status]) bounds the scan to one tenant's slice. A trigram/FTS index is the
+  // next step if a single tenant's list outgrows that.
+  if (search) where.email = { contains: search }
 
   const [leads, total] = await Promise.all([
     prisma.lead.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),

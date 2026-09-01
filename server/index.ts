@@ -9,12 +9,14 @@ import sendsRoutes from './routes/sends.js'
 import webhooksRoutes from './routes/webhooks.js'
 import demoRoutes from './routes/demo.js'
 import { startWorker } from './workers/bounceWorker.js'
+import { captureRawBody } from './lib/rawBody.js'
 
 const app = express()
 app.use(helmet())
 app.use(cors({ origin: true }))
 app.use(morgan('dev'))
-app.use(express.json({ limit: '2mb' }))
+// verify hook keeps the raw bytes for webhook HMAC checks
+app.use(express.json({ limit: '2mb', verify: captureRawBody }))
 
 app.get('/health/live', (_req, res) => res.json({ status: 'ok' }))
 app.get('/health/ready', async (_req, res) => {
@@ -36,9 +38,11 @@ app.use('/api/webhooks', webhooksRoutes)
 app.use('/api/demo', demoRoutes)
 
 app.get('/api/webhooks-docs', (_req, res) => {
+  const body = `{"userId":"<uuid>","email":"a@b.com","type":"hard","reason":"550 5.1.1","eventId":"evt_123"}`
   res.json({
-    example: `curl -X POST http://localhost:3001/api/webhooks/bounce -H 'X-Bounce-Signature: <hmac>' -H 'Content-Type: application/json' -d '{"email":"a@b.com","type":"hard","reason":"550 5.1.1","eventId":"evt_123"}'`,
-    hmac: `echo -n '{"email":"a@b.com","type":"hard","reason":"550","eventId":"evt_123"}' | openssl dgst -sha256 -hmac $WEBHOOK_SECRET`,
+    note: 'the signature is over the exact request bytes — sign the same string you send',
+    hmac: `BODY='${body}'; SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -r | cut -d' ' -f1)`,
+    example: `curl -X POST http://localhost:3001/api/webhooks/bounce -H "X-Bounce-Signature: $SIG" -H 'Content-Type: application/json' -d "$BODY"`,
   })
 })
 

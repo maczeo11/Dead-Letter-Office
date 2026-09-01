@@ -43,11 +43,14 @@ model Bounce {
 }
 
 model BounceEvent { // the queue — this is what SKIP LOCKED belongs to
-  id        String   @id @default(uuid())
-  payload   String   @db.Text
-  status    String   @default("PENDING") // PENDING | DONE | FAILED
-  createdAt DateTime @default(now())
-  @@index([status])
+  id        String    @id @default(uuid())
+  payload   String    @db.Text
+  status    String    @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  claimedAt DateTime? // set when a worker claims it; stale claims are requeued
+  attempts  Int       @default(0)
+  error     String?   @db.Text
+  createdAt DateTime  @default(now())
+  @@index([status, createdAt]) // claim query orders by createdAt within status
 }
 
 model HygieneScore {

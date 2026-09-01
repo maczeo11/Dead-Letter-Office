@@ -1,81 +1,147 @@
 import { prisma } from '../lib/prisma.js'
-import { computeScore, RISKY_AFTER_SOFT, SOFT_WEIGHT } from '../lib/score.js'
+import { computeScore, nextLeadStatus } from '../lib/score.js'
 
 type BounceEventRow = { id: string; payload: string }
 
-export async function processBounceEvents() {
-  // Worker pull — locks only hold within tx, SKIP LOCKED avoids contention
-  const rows = await prisma.$transaction(async tx => {
+type BouncePayload = {
+  userId: string
+  email: string
+  type: string
+  eventId: string
+  reason?: string
+}
+
+const CLAIM_BATCH = 10
+/** A claim older than this is assumed to belong to a dead worker and is requeued. */
+export const STALE_CLAIM_MS = 60_000
+export const MAX_ATTEMPTS = 5
+
+/**
+ * Claim a batch. `FOR UPDATE SKIP LOCKED` lets N workers pull disjoint rows
+ * without blocking each other. Rows move PENDING → PROCESSING inside the
+ * transaction, so the claim is durable, but they are only marked DONE *after*
+ * the work commits — a crash mid-batch leaves them PROCESSING for the stale
+ * reaper to requeue rather than silently dropping the bounce.
+ */
+async function claimBatch(): Promise<BounceEventRow[]> {
+  return prisma.$transaction(async tx => {
     const found = await tx.$queryRaw<BounceEventRow[]>`
       SELECT id, payload FROM "BounceEvent" WHERE status = 'PENDING'
-      ORDER BY "createdAt" ASC LIMIT 10 FOR UPDATE SKIP LOCKED`
+      ORDER BY "createdAt" ASC LIMIT ${CLAIM_BATCH} FOR UPDATE SKIP LOCKED`
     if (found.length === 0) return []
-    const ids = found.map(r => r.id)
-    await tx.bounceEvent.updateMany({ where: { id: { in: ids } }, data: { status: 'DONE' } })
-    // re-read to ensure we own them — simplified: mark DONE then process
+    await tx.bounceEvent.updateMany({
+      where: { id: { in: found.map(r => r.id) } },
+      data: { status: 'PROCESSING', claimedAt: new Date(), attempts: { increment: 1 } },
+    })
     return found
   })
+}
+
+/** Requeue events whose worker died mid-flight; give up after MAX_ATTEMPTS. */
+export async function requeueStaleClaims(staleMs = STALE_CLAIM_MS) {
+  const cutoff = new Date(Date.now() - staleMs)
+  const [requeued, exhausted] = await Promise.all([
+    prisma.bounceEvent.updateMany({
+      where: { status: 'PROCESSING', claimedAt: { lt: cutoff }, attempts: { lt: MAX_ATTEMPTS } },
+      data: { status: 'PENDING', claimedAt: null },
+    }),
+    prisma.bounceEvent.updateMany({
+      where: { status: 'PROCESSING', claimedAt: { lt: cutoff }, attempts: { gte: MAX_ATTEMPTS } },
+      data: { status: 'FAILED', error: 'exceeded max attempts' },
+    }),
+  ])
+  return { requeued: requeued.count, exhausted: exhausted.count }
+}
+
+/**
+ * Apply one bounce. Everything that mutates state runs in a single transaction
+ * keyed on `Bounce.eventId @unique`, so a redelivered webhook either applies
+ * once in full or rolls back entirely — the score can never be double-counted.
+ */
+async function applyBounce(p: BouncePayload): Promise<'applied' | 'duplicate' | 'unknown-lead'> {
+  // Scoped by userId: Lead.email is only unique *per user*, so an unscoped
+  // lookup would attribute one tenant's bounce to another tenant's lead.
+  const lead = await prisma.lead.findUnique({
+    where: { userId_email: { userId: p.userId, email: p.email } },
+  })
+  if (!lead) return 'unknown-lead'
+
+  const isHard = p.type === 'hard'
+
+  try {
+    await prisma.$transaction(async tx => {
+      // Idempotency guard — a duplicate eventId aborts the whole transaction.
+      await tx.bounce.create({ data: { leadId: lead.id, eventId: p.eventId, type: p.type, reason: p.reason } })
+
+      const updated = await tx.lead.update({
+        where: { id: lead.id },
+        data: { softCount: { increment: isHard ? 0 : 1 }, reason: p.reason },
+      })
+      const status = nextLeadStatus(updated.status, isHard, updated.softCount)
+      if (status !== updated.status) {
+        await tx.lead.update({ where: { id: lead.id }, data: { status } })
+      }
+
+      // Atomic increments rather than read-modify-write, so concurrent workers
+      // on the same tenant can't clobber each other's counters.
+      const hs = await tx.hygieneScore.upsert({
+        where: { userId: lead.userId },
+        create: { userId: lead.userId, total: 0, hard: isHard ? 1 : 0, soft: isHard ? 0 : 1, score: 100 },
+        update: { hard: { increment: isHard ? 1 : 0 }, soft: { increment: isHard ? 0 : 1 } },
+      })
+      await tx.hygieneScore.update({
+        where: { userId: lead.userId },
+        data: { score: computeScore(hs.total, hs.hard, hs.soft) },
+      })
+    })
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === 'P2002') return 'duplicate'
+    throw e
+  }
+
+  return 'applied'
+}
+
+export async function processBounceEvents() {
+  await requeueStaleClaims()
+
+  const rows = await claimBatch()
+  let applied = 0
 
   for (const row of rows) {
     try {
-      const { email, type, reason, eventId } = JSON.parse(row.payload) as {
-        email: string
-        type: string
-        eventId: string
-        reason?: string
-      }
-
-      // find lead (userId unknown from webhook — need to lookup by email across users? For MVP, assume single tenant or first match)
-      const lead = await prisma.lead.findFirst({ where: { email } })
-      if (!lead) continue
-
-      // idempotent Bounce via eventId @unique
-      try {
-        await prisma.bounce.create({ data: { leadId: lead.id, eventId, type, reason } })
-      } catch (e: unknown) {
-        if ((e as { code?: string }).code === 'P2002') continue // deduped
-        throw e
-      }
-
-      // weighted hygiene + status
-      const isHard = type === 'hard'
-      const userId = lead.userId
-
-      // update Lead: softCount, status
-      let newStatus = lead.status
-      let newSoftCount = lead.softCount
-      if (isHard) {
-        newStatus = 'BOUNCED'
-      } else {
-        newSoftCount = lead.softCount + 1
-        if (newSoftCount >= RISKY_AFTER_SOFT) newStatus = 'RISKY'
-      }
-
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: { status: newStatus, softCount: newSoftCount, reason },
+      const p = JSON.parse(row.payload) as BouncePayload
+      const outcome = await applyBounce(p)
+      if (outcome === 'applied') applied++
+      // duplicate and unknown-lead are terminal, not failures — nothing to retry.
+      await prisma.bounceEvent.update({
+        where: { id: row.id },
+        data: { status: 'DONE', error: outcome === 'applied' ? null : outcome },
       })
-
-      // update HygieneScore weighted
-      const hs = await prisma.hygieneScore.findUnique({ where: { userId } })
-      if (hs) {
-        const hard = hs.hard + (isHard ? 1 : 0)
-        const soft = hs.soft + (isHard ? 0 : 1)
-        const score = computeScore(hs.total, hard, soft)
-        await prisma.hygieneScore.update({ where: { userId }, data: { hard, soft, score } })
-      }
     } catch (err) {
-      await prisma.bounceEvent.update({ where: { id: row.id }, data: { status: 'FAILED' } })
+      // Leave it FAILED with the reason; the reaper only rescues crashed
+      // workers, so a poison payload stops here instead of looping forever.
+      await prisma.bounceEvent.update({
+        where: { id: row.id },
+        data: { status: 'FAILED', error: (err as Error).message?.slice(0, 500) ?? 'unknown error' },
+      })
       console.error('bounce worker failed', row.id, err)
     }
   }
 
-  return rows.length
+  return { claimed: rows.length, applied }
 }
 
 export function startWorker(intervalMs = 2000) {
+  let running = false
   setInterval(() => {
-    processBounceEvents().catch(console.error)
+    if (running) return // don't overlap ticks — one drain at a time per process
+    running = true
+    processBounceEvents()
+      .catch(console.error)
+      .finally(() => {
+        running = false
+      })
   }, intervalMs)
   console.log(`bounce worker every ${intervalMs}ms — FOR UPDATE SKIP LOCKED`)
 }
