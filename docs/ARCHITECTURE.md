@@ -1,6 +1,6 @@
 # Dead Letter Office — Architecture
 
-> Stack: **Next.js 14 App Router + TypeScript + Tailwind + Node.js + TypeScript + Express + Prisma + MySQL + REST + Docker** — forensic lab theme `ink #0b0b0c / kraft #ece9e4 / accent #c8553d / Courier mono`.
+> Stack: **Next.js 16 App Router + React 19 + TypeScript + Tailwind v4 + Node.js + Express 5 + Prisma + PostgreSQL 16 + REST + Docker** — forensic lab theme `ink #0b0b0c / kraft #ece9e4 / accent #c8553d / Courier mono`.
 
 ## 1. High-Level
 
@@ -9,14 +9,14 @@ flowchart TB
   U[User Browser] --> FE[Next.js FE\nTS + Tailwind\nHealthBar]
   FE -->|REST + JWT Bearer| BE[Express BE TS\n/api + /webhooks/bounce]
   BE --> Q[(BounceEvent PENDING\nSKIP LOCKED worker)]
-  Q --> DB[(MySQL 8\nPrisma)]
-  BE --> WH[Webhook Source\nSendGrid mock + HMAC]
-  FE --> HB[GET /health/ready\nmysql: ok, score:87]
+  Q --> DB[(PostgreSQL 16\nPrisma)]
+  BE --> WH[Webhook Source\nESP callback + HMAC]
+  FE --> HB[GET /health/ready\ndb: ok, leads: n]
 ```
 
 Frontend forwards **live backend only**, no fake fallback. `HealthBar` polls `/health/ready` → pill `LIVE` (green) / `OFFLINE` (red). Bounce path is queued — `SKIP LOCKED` belongs to worker, not webhook.
 
-## 2. Data Model — Prisma MySQL (paste-ready, fixes baked in)
+## 2. Data Model — Prisma / PostgreSQL
 
 ```prisma
 generator client {
@@ -24,7 +24,7 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"] // required for alpine Docker
 }
 
-datasource db { provider = "mysql" url = env("DATABASE_URL") }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
 
 model User {
   id String @id @default(uuid())
@@ -63,9 +63,12 @@ model Bounce {
 model BounceEvent { // the queue — this is what SKIP LOCKED belongs to
   id String @id @default(uuid())
   payload String @db.Text
-  status String @default("PENDING") // PENDING | DONE | FAILED
+  status String @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  claimedAt DateTime? // stale claims are requeued — a dead worker can't eat an event
+  attempts Int @default(0)
+  error String? @db.Text
   createdAt DateTime @default(now())
-  @@index([status])
+  @@index([status, createdAt])
 }
 
 model HygieneScore {
@@ -79,8 +82,12 @@ model HygieneScore {
 }
 ```
 
-- DB optimization: `@@unique([userId,email])` prevents duplicate lead per user, `@@index([userId,status])` for `GET /leads?status=BOUNCED&page&search`.
-- Hygiene calc: pure fn `SOFT_WEIGHT=0.3, RISKY_AFTER_SOFT=3`, `score = 100 - ((hard + 0.3*soft)/total*100)`, upsert `HygieneScore` in worker transaction.
+- DB optimization: `@@unique([userId,email])` prevents a duplicate lead per user *and* gives the worker a keyed
+  `findUnique(userId_email)` lookup; `@@index([userId,status])` serves `GET /leads?status=BOUNCED&page&search`.
+- Tenant scoping: `Lead.email` is unique **per user**, never globally — every read and every worker lookup must carry
+  `userId` or one tenant's bounce lands on another tenant's lead.
+- Hygiene calc: pure fn `SOFT_WEIGHT=0.3, RISKY_AFTER_SOFT=3`, `score = 100 - ((hard + 0.3*soft)/total*100)`, applied
+  with atomic `increment`s inside the worker transaction so concurrent workers can't clobber the counters.
 
 ## 3. API — REST (live only)
 
@@ -89,18 +96,20 @@ model HygieneScore {
 | POST | /api/auth/register {email,password} | no | bcrypt + JWT |
 | POST | /api/auth/login | no | → {token} |
 | POST | /api/leads/import | JWT | multipart CSV chunk 500, `email.trim().toLowerCase()`, `createMany skipDuplicates` → {imported, skipped}, transaction bumps `HygieneScore.total` |
-| GET | /api/leads?status=BOUNCED&page=1&search=gmail | JWT | paginated, uses index, prefix search only |
-| POST | /api/webhooks/bounce {email, type, reason, eventId} | HMAC `X-Bounce-Signature` | enqueues `BounceEvent PENDING` — returns 202 |
+| GET | /api/leads?status=BOUNCED&page=1&search=gmail | JWT | paginated; `(userId,status)` index bounds the scan, `search` is a substring match within it |
+| POST | /api/webhooks/bounce {userId, email, type, reason, eventId} | HMAC `X-Bounce-Signature` over the raw body | enqueues `BounceEvent PENDING` — returns 202 |
 | GET | /api/hygiene | JWT | → {total, hard, soft, score} weighted |
 | POST | /api/sends/preview {leadIds} | JWT | suppression gate → {sendable, suppressed: [...] } |
-| POST | /api/demo/seed | no | seeds 20 leads + 3 bounces for Loom |
+| POST | /api/demo/seed | JWT | seeds 20 leads for the caller |
 | GET | /api/webhooks-docs | no | curl samples for HMAC |
 | GET | /health/live | no | {status: ok} |
-| GET | /health/ready | no | {mysql: ok, score: 87} 503 if down |
+| GET | /health/ready | no | {db: ok, leads: n} — 503 if the DB is down |
 
-- **Live only:** `api.ts` `request<T>` throws on `!res.ok` → UI shows `Live backend not reachable` — no `catch(()=>[])` fake.
-- **CORS:** `AllowAllOrigins: true` in Go `cmd/api/main.go:64` analog → Express `cors({origin: true})` for Vercel preview.
-- **HMAC verify:** `timingSafeEqual` with length guard (see snippets below).
+- **Live only:** `api.ts` `request<T>` throws on `!res.ok` → UI surfaces the error — no `catch(()=>[])` fake data.
+- **CORS:** Express `cors({origin: true})` so Vercel preview deploys can reach the API.
+- **HMAC verify:** computed over the **raw request bytes** (captured via the `express.json({ verify })` hook), compared
+  with `timingSafeEqual` behind a length guard. Re-serializing `req.body` would not reproduce the sender's key order or
+  whitespace. Missing `WEBHOOK_SECRET` fails closed with a 500 rather than accepting unverified bounces.
 
 ## 4. Frontend — Next App Router
 
@@ -134,8 +143,11 @@ src/
   lib/score.ts — pure computeScore(total, hard, soft)
 ```
 
-- **CSV import:** `multer` + `csv-parse` stream, buffer 500, `email.trim().toLowerCase()`, `prisma.lead.createMany({skipDuplicates: true})` → recalc `HygieneScore.total` in same `$transaction`.
-- **Bounce worker:** `prisma.$transaction` pulls `SELECT id FROM BounceEvent WHERE status='PENDING' ORDER BY createdAt LIMIT 10 FOR UPDATE SKIP LOCKED` → HMAC verify → idempotent `eventId @unique` → update `Lead.status` + `HygieneScore` weighted.
+- **CSV import:** `multer` + `csv-parse`, 500-row chunks, `email.trim().toLowerCase()`, `prisma.lead.createMany({skipDuplicates: true})` → bump and recompute `HygieneScore` in one `$transaction`.
+- **Bounce worker:** `$transaction` claims with `SELECT id, payload FROM "BounceEvent" WHERE status='PENDING' ORDER BY "createdAt" LIMIT 10 FOR UPDATE SKIP LOCKED`, moving rows to `PROCESSING` with a `claimedAt` stamp. Each event is then applied in its own transaction — `Bounce(eventId @unique)` insert + `Lead.status` + `HygieneScore` increments together — and only marked `DONE` **after** that commits.
+  - **Duplicate delivery:** the unique `eventId` aborts the transaction, so the retry changes nothing. Effect is exactly-once.
+  - **Crashed worker:** the row is left `PROCESSING`; `requeueStaleClaims()` returns it to `PENDING` after 60s, up to `MAX_ATTEMPTS`, then parks it `FAILED`. Delivery is at-least-once, which the idempotency guard makes safe.
+  - **Poison payload:** marked `FAILED` with the error, never retried in a loop.
 - **Score fn (testable):**
 ```ts
 export const SOFT_WEIGHT = 0.3, RISKY_AFTER_SOFT = 3
@@ -148,19 +160,19 @@ export const computeScore = (total: number, hard: number, soft: number) =>
 | Layer | Host | Env |
 |---|---|---|
 | FE | Vercel `vercel --prod` | `NEXT_PUBLIC_API_BASE=https://dead-letter-api.up.railway.app/api` |
-| BE | Railway `railway up --service api` | `DATABASE_URL=mysql://...` (private `MYSQL_URL`), `JWT_SECRET=32b-random`, `WEBHOOK_SECRET`, `PORT=3001` |
-| DB | Railway MySQL (fallback TiDB Serverless) | `npx prisma migrate deploy` |
+| BE | Railway `railway up --service api` | `DATABASE_URL=postgresql://...`, `JWT_SECRET=32b-random`, `WEBHOOK_SECRET`, `PORT=3001` |
+| DB | Railway Postgres (or Neon) | `npx prisma db push` |
 
-Docker `node:20-alpine` `binaryTargets linux-musl-openssl-3.0.x` — `C:\Users\bhanu\mycodes\capstone\notion-capstone-plan\02 - Cloud, Docker, K8s, AWS & HPC.md:15` pattern. Target deploy **hour 36 absolute latest** (migrations + CORS always eat 2-3h). `EXPLAIN ANALYZE` on `userId+status` → `type=ref, key=userId_status` → paste in README.
+Docker `node:20-alpine` with `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` — Prisma needs the musl engine
+inside alpine or the client fails to load at runtime.
 
 ## 7. Testing & Docs
 
-- **Jest:** `bounce → BOUNCED exactly once` via `eventId @unique`, score weighted
-- **Swagger:** `/docs` via `swagger-ui-express`
-- **README live URLs** for Form `https://forms.gle/BSsVLy11mCdsm6Rd6` + 60s Loom + GIF `seed → bounce → score drops`
+- **vitest** (`npx vitest run`) over the pure logic: weighted `computeScore` and the `nextLeadStatus` transition table
+  (hard quarantines, 3× soft escalates to RISKY, `BOUNCED` is terminal).
+- **API reference:** the table in §3 plus `GET /api/webhooks-docs` and the `/webhooks-docs` page, which emit a signed,
+  copy-pasteable curl. OpenAPI/Swagger is not wired up yet.
 
 ## 8. Links
 
 - Repo: https://github.com/maczeo11/Dead-Letter-Office
-- CineFund reusable: `C:\Users\bhanu\mycodes\go\cinefund\web\src\api.ts:4`, `HealthBar.tsx:1`, `tailwind.config.js:6`
-- Cut order if slipping: styling → CineFund API deploy → autopsy extras. Never cut: webhook path, seed, live deploy, form.

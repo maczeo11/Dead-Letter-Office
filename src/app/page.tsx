@@ -35,7 +35,8 @@ export default function Overview() {
             Dead Letter <span className="italic text-[#c8553d]">Office</span>
           </h1>
           <p className="mt-3 text-sm text-zinc-400 max-w-xl">
-            Import CSV → webhook bounce → quarantine → hygiene 0-100 → suppress. Mini-Zapmail for Outbox Labs.
+            Import CSV → webhook bounce → quarantine → hygiene 0-100 → suppress before the next send, so a bad list
+            never burns the sending domain.
           </p>
         </div>
       </div>
