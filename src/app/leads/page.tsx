@@ -50,7 +50,7 @@ export default function LeadsPage() {
       </div>
 
       <div className="mt-4">
-        <input type="text" placeholder="search prefix — e.g. gmail" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+        <input type="text" placeholder="search email — e.g. gmail" value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
           className="w-full max-w-sm bg-white/[0.04] border border-white/10 px-4 py-2 text-sm font-mono placeholder:text-zinc-600 focus:outline-none focus:border-white/30" />
       </div>
 
