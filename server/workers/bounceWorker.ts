@@ -7,8 +7,8 @@ export async function processBounceEvents() {
   // Worker pull — locks only hold within tx, SKIP LOCKED avoids contention
   const rows = await prisma.$transaction(async tx => {
     const found = await tx.$queryRaw<BounceEventRow[]>`
-      SELECT id, payload FROM BounceEvent WHERE status = 'PENDING'
-      ORDER BY createdAt ASC LIMIT 10 FOR UPDATE SKIP LOCKED`
+      SELECT id, payload FROM "BounceEvent" WHERE status = 'PENDING'
+      ORDER BY "createdAt" ASC LIMIT 10 FOR UPDATE SKIP LOCKED`
     if (found.length === 0) return []
     const ids = found.map(r => r.id)
     await tx.bounceEvent.updateMany({ where: { id: { in: ids } }, data: { status: 'DONE' } })

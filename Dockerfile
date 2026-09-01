@@ -29,4 +29,4 @@ EXPOSE 3000 3001
 ENV NODE_ENV=production
 ENV PORT=3001
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx server/index.ts & npx next start -p 3000"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npx tsx server/index.ts & npx next start -p 3000"]
