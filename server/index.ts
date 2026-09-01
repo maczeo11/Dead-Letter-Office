@@ -18,14 +18,13 @@ app.use(express.json({ limit: '2mb' }))
 
 app.get('/health/live', (_req, res) => res.json({ status: 'ok' }))
 app.get('/health/ready', async (_req, res) => {
-  // MySQL ping via Prisma
   try {
     const { prisma } = await import('./lib/prisma.js')
     await prisma.$queryRaw`SELECT 1`
     const count = await prisma.lead.count().catch(() => 0)
-    res.json({ mysql: 'ok', leads: count })
+    res.json({ db: 'ok', leads: count })
   } catch {
-    res.status(503).json({ mysql: 'down' })
+    res.status(503).json({ db: 'down' })
   }
 })
 

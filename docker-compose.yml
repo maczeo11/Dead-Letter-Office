@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/test_db
+      JWT_SECRET: dead-letter-office-dev-secret-32b-long!!
+      WEBHOOK_SECRET: dev-webhook-secret-hmac-256
+      PORT: "3001"
+      NEXT_PUBLIC_API_BASE: http://localhost:3001/api
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/test_db
+      JWT_SECRET: dead-letter-office-dev-secret-32b-long!!
+      NEXT_PUBLIC_API_BASE: http://localhost:3001/api
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  pgdata:

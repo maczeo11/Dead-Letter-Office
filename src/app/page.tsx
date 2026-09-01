@@ -1,85 +1,121 @@
-import Link from 'next/link'
+'use client'
+import { useEffect, useState } from 'react'
+import { getApiBase, request } from '@/lib/api'
 
-export default function Home() {
+type Hygiene = { total: number; hard: number; soft: number; score: number }
+type Lead = { id: string; email: string; status: string; softCount: number; reason?: string; createdAt: string }
+
+export default function Overview() {
+  const [h, setH] = useState<Hygiene | null>(null)
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [total, setTotal] = useState(0)
+  const [token, setToken] = useState<string | null>(null)
+  const [auth, setAuth] = useState(false)
+
+  useEffect(() => {
+    const t = localStorage.getItem('token')
+    setToken(t)
+    if (!t) return
+    setAuth(true)
+    request<Hygiene>('/hygiene', { token: t }).then(setH).catch(() => {})
+    request<{ leads: Lead[]; total: number }>('/leads?status=ALL&page=1', { token: t })
+      .then(j => { setLeads(j.leads); setTotal(j.total) })
+      .catch(() => {})
+  }, [])
+
+  const bounced = leads.filter(l => l.status === 'BOUNCED').length
+  const risky = leads.filter(l => l.status === 'RISKY').length
+
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-white/10 pb-6">
         <div>
-          <div className="label">Lab / Archive — 35mm + ledger</div>
+          <div className="label">Bounce Autopsy Lab</div>
           <h1 className="font-serif text-4xl leading-none mt-2">
-            Forensic hygiene for <em className="italic text-[#c8553d]">outbound</em>
+            Dead Letter <span className="italic text-[#c8553d]">Office</span>
           </h1>
-          <p className="mt-3 text-sm text-zinc-400 max-w-xl">Import CSV → bounce webhook → auto-quarantine → hygiene 0-100. Painkiller for domain burn $10-15 — mini-Zapmail for Outbox Labs.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/import" className="bg-white text-black px-5 py-2.5 uppercase text-xs tracking-widest">
-            Import CSV
-          </Link>
-          <Link href="/dashboard" className="border border-white/20 px-5 py-2.5 uppercase text-xs tracking-widest">
-            View Hygiene
-          </Link>
+          <p className="mt-3 text-sm text-zinc-400 max-w-xl">
+            Import CSV → webhook bounce → quarantine → hygiene 0-100 → suppress. Mini-Zapmail for Outbox Labs.
+          </p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 mt-6">
-        <div className="tw-card p-5">
-          <div className="label">Total leads</div>
-          <div className="font-serif text-3xl mt-2">1,247</div>
-          <div className="meter mt-3">
-            <span style={{ width: '100%' }} />
-          </div>
-          <div className="text-xs text-zinc-500 mt-2">@unique([userId,email]) — no leading %</div>
+      {!auth && (
+        <div className="mt-8 tw-card p-6 text-center">
+          <p className="text-zinc-400">Register or login to start.</p>
+          <p className="text-xs text-zinc-500 mt-2">POST /api/auth/register → JWT → paste token in localStorage</p>
         </div>
-        <div className="tw-card p-5">
-          <div className="label">Hygiene score</div>
-          <div className="font-serif text-3xl mt-2">
-            87<span className="text-sm text-zinc-500"> /100</span>
-          </div>
-          <div className="meter mt-3">
-            <span style={{ width: '87%' }} className="!bg-green-500" />
-          </div>
-          <div className="text-xs text-zinc-500 mt-2">hard + 0.3·soft — RISKY after 3 softs</div>
-        </div>
-        <div className="tw-card p-5">
-          <div className="label">Live backend</div>
-          <div className="font-mono text-sm mt-2">POST /webhooks/bounce</div>
-          <div className="text-xs text-zinc-500 mt-1">HMAC + eventId @unique → SKIP LOCKED worker</div>
-          <Link href="/webhooks-docs" className="inline-flex mt-3 text-xs uppercase tracking-widest border-b border-[#c8553d] pb-1">
-            Curl docs →
-          </Link>
-        </div>
-      </div>
+      )}
 
-      <div className="grid md:grid-cols-2 gap-4 mt-4">
-        <div className="tw-card p-5">
-          <div className="label">Separate features — not one dashboard</div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <Link href="/import" className="border border-white/10 p-3 hover:bg-white/5">
-              /import — CSV dropzone
-            </Link>
-            <Link href="/leads" className="border border-white/10 p-3 hover:bg-white/5">
-              /leads — forensic table
-            </Link>
-            <Link href="/dashboard" className="border border-white/10 p-3 hover:bg-white/5">
-              /dashboard — meter + autopsy
-            </Link>
-            <Link href="/webhooks-docs" className="border border-white/10 p-3 hover:bg-white/5">
-              /webhooks-docs — HMAC curl
-            </Link>
+      {auth && (
+        <>
+          <div className="grid md:grid-cols-4 gap-4 mt-6">
+            <div className="tw-card p-5">
+              <div className="label">Total leads</div>
+              <div className="font-serif text-3xl mt-2">{total}</div>
+              <div className="meter mt-3"><span style={{ width: '100%' }} /></div>
+            </div>
+            <div className="tw-card p-5">
+              <div className="label">Hygiene score</div>
+              <div className="font-serif text-3xl mt-2">
+                {h?.score ?? '—'}<span className="text-sm text-zinc-500"> /100</span>
+              </div>
+              <div className="meter mt-3">
+                <span style={{ width: `${h?.score ?? 0}%` }} className={h && h.score > 90 ? '!bg-green-500' : h && h.score > 70 ? '!bg-amber-500' : '!bg-red-500'} />
+              </div>
+              <div className="text-xs text-zinc-500 mt-2">hard + 0.3·soft — RISKY after 3</div>
+            </div>
+            <div className="tw-card p-5">
+              <div className="label">Bounced</div>
+              <div className="font-serif text-3xl mt-2 text-red-400">{bounced}</div>
+              <div className="text-xs text-zinc-500 mt-2">quarantined — auto-suppress</div>
+            </div>
+            <div className="tw-card p-5">
+              <div className="label">Risky</div>
+              <div className="font-serif text-3xl mt-2 text-amber-400">{risky}</div>
+              <div className="text-xs text-zinc-500 mt-2">softCount ≥ 3 — retry limit</div>
+            </div>
           </div>
-        </div>
-        <div className="tw-card p-5">
-          <div className="label">Stack — different UI types</div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="tw-badge">Table — forensic leads</span>
-            <span className="tw-badge">Card — hygiene</span>
-            <span className="tw-badge">Meter — score</span>
-            <span className="tw-badge">Stamp — BOUNCED</span>
-            <span className="tw-badge">Mono — 550 5.1.1</span>
+
+          <div className="mt-6 tw-card overflow-hidden">
+            <div className="px-5 py-3 border-b border-white/10 flex justify-between items-center">
+              <span className="label">Recent leads</span>
+              <a href="/leads" className="text-xs uppercase tracking-widest border-b border-[#c8553d] pb-0.5">
+                View all →
+              </a>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-white/[0.03] text-xs uppercase tracking-widest">
+                  <tr>
+                    <th className="text-left px-5 py-2">Email</th>
+                    <th className="text-left px-5 py-2">Status</th>
+                    <th className="text-left px-5 py-2">Reason</th>
+                    <th className="text-left px-5 py-2">Soft</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.slice(0, 5).map(l => (
+                    <tr key={l.id} className="border-t border-white/10 hover:bg-white/[0.03]">
+                      <td className="px-5 py-3 font-mono text-xs">{l.email}</td>
+                      <td className="px-5 py-3">
+                        <span className={`tw-badge ${l.status === 'BOUNCED' ? 'border-red-500 text-red-400 rotate-1' : l.status === 'RISKY' ? 'border-amber-500 text-amber-400' : 'border-white/20'}`}>
+                          {l.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 font-mono text-xs text-zinc-400">{l.reason || '—'}</td>
+                      <td className="px-5 py-3 text-xs text-zinc-500">{l.softCount}</td>
+                    </tr>
+                  ))}
+                  {leads.length === 0 && (
+                    <tr><td colSpan={4} className="px-5 py-8 text-center text-zinc-500">No leads — import CSV or POST /demo/seed</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Different UI types/styles per feature — not bland dashboard.</p>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }
