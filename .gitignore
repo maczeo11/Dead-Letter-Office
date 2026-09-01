@@ -37,3 +37,6 @@ next-env.d.ts
 # misc
 *.pem
 /coverage
+
+# agent tooling - generated locally, not part of the project
+CLAUDE.md

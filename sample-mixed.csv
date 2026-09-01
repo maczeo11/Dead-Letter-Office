@@ -1,0 +1,11 @@
+email,first_name,last_name,company
+bounce_hard1@fake-gmail-test.com,Test,Hard1,FakeCo
+bounce_hard2@invalid-domain-xyz.invalid,Test,Hard2,BadCo
+bounce_hard3@nonexistent-987654.com,Test,Hard3,NoMail
+soft_temp1@tempmail-soft1.com,Soft,Temp1,RetryCo
+soft_temp2@greylisted.example,Grey,Listed,DelayCo
+valid_real1@gmail.com,Valid,Real1,GoodCo
+valid_real2@outlook.com,Valid,Real2,GoodCo
+valid_real3@yahoo.com,Valid,Real3,GoodCo
+valid_real4@company.io,Valid,Real4,GoodCo
+valid_real5@startup.dev,Valid,Real5,GoodCo
