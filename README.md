@@ -5,7 +5,7 @@
 [![Railway Deployment](https://img.shields.io/badge/Railway-Backend%20API%20Live-0B0D0E?style=flat&logo=railway)](https://dead-letter-office-production-5851.up.railway.app/health/ready)
 [![Neon Database](https://img.shields.io/badge/Neon-PostgreSQL%20Serverless-00E599?style=flat&logo=postgresql&logoColor=black)](https://neon.tech)
 
-> **Live Frontend**: [https://dead-letter-office-ten.vercel.app](https://dead-letter-office-ten.vercel.app) *(or [https://dlo.maczeo.me](https://dlo.maczeo.me))*  
+> **Live Frontend**: [https://dead-letter-office-ten.vercel.app](https://dead-letter-office-ten.vercel.app)  
 > **Live API Backend**: [https://dead-letter-office-production-5851.up.railway.app/api](https://dead-letter-office-production-5851.up.railway.app/api)
 
 > Import a lead CSV → receive bounce webhooks → auto-quarantine bad addresses → score the list 0–100 → suppress the
