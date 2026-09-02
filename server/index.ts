@@ -48,11 +48,28 @@ app.get('/api/webhooks-docs', (_req, res) => {
 
 const port = parseInt(process.env.PORT || process.env.API_PORT || '3001')
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, () => {
+  if (!process.env.JWT_SECRET) console.warn('⚠️ [WARN] JWT_SECRET not set, using dev fallback')
+  if (!process.env.WEBHOOK_SECRET) console.warn('⚠️ [WARN] WEBHOOK_SECRET not set, using dev fallback')
+
+  const server = app.listen(port, () => {
     console.log(`API listening on :${port} — live backend only`)
-    // start bounce worker loop — locks only within tx, SKIP LOCKED
-    startWorker(2000)
+    // start bounce worker loop with adaptive backoff — FOR UPDATE SKIP LOCKED
+    startWorker(2000, 20000)
   })
+
+  const shutdown = async (signal: string) => {
+    console.log(`Received ${signal}, closing server gracefully...`)
+    server.close(async () => {
+      try {
+        const { prisma } = await import('./lib/prisma.js')
+        await prisma.$disconnect()
+      } catch {}
+      process.exit(0)
+    })
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 export default app

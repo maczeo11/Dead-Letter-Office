@@ -24,12 +24,14 @@ router.post('/import', bearer, upload.single('file'), async (req: AuthRequest, r
 
   if (emails.length === 0) return res.status(400).json({ error: { message: 'no emails provided (CSV with header email or {emails: []})' } })
 
-  // chunk 500, dedup within chunk via Set
+  // Deduplicate upfront so chunking does not drop intra-chunk duplicates from skipped count
+  const uniqueEmails = [...new Set(emails)]
   const CHUNK = 500
   let imported = 0
-  let skipped = 0
-  for (let i = 0; i < emails.length; i += CHUNK) {
-    const chunk = [...new Set(emails.slice(i, i + CHUNK))]
+  let skipped = emails.length - uniqueEmails.length
+
+  for (let i = 0; i < uniqueEmails.length; i += CHUNK) {
+    const chunk = uniqueEmails.slice(i, i + CHUNK)
     // lowercased on the way in so @@unique([userId, email]) actually dedupes
     const rows = chunk.map(email => ({ email, userId, status: 'VALID' }))
     const result = await prisma.lead.createMany({ data: rows, skipDuplicates: true })

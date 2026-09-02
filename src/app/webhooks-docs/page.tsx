@@ -11,9 +11,16 @@ export default function WebhooksDocs() {
   const [simLoading, setSimLoading] = useState(false)
   const [simResult, setSimResult] = useState<any>(null)
   const [simError, setSimError] = useState<string | null>(null)
+  const [webhookUrl, setWebhookUrl] = useState('http://localhost:3001/api/webhooks/bounce')
 
   useEffect(() => {
     setToken(localStorage.getItem('token'))
+    const base = getApiBase()
+    if (base.startsWith('http')) {
+      setWebhookUrl(`${base}/webhooks/bounce`)
+    } else if (typeof window !== 'undefined') {
+      setWebhookUrl(`${window.location.origin}${base}/webhooks/bounce`)
+    }
   }, [])
 
   async function handleSimulate(isIdempotencyTest = false) {
@@ -184,12 +191,12 @@ export default function WebhooksDocs() {
       <div className="space-y-4">
         <h2 className="font-serif text-xl">API Specification & Verification Pattern</h2>
         <pre className="bg-black border border-white/10 rounded p-4 text-xs overflow-x-auto leading-relaxed">
-          {`# 1. Sign the exact raw request bytes with your tenant HMAC secret:
+{`# 1. Sign the exact raw request bytes with your tenant HMAC secret:
 BODY='{"userId":"<uuid>","email":"a@b.com","type":"hard","reason":"550 5.1.1","eventId":"evt_123"}'
 SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -r | cut -d' ' -f1)
 
 # 2. Fire bounce webhook to ingestion endpoint:
-curl -X POST https://dead-letter-office-production-5851.up.railway.app/api/webhooks/bounce \\
+curl -X POST ${webhookUrl} \\
   -H "X-Bounce-Signature: $SIG" \\
   -H 'Content-Type: application/json' \\
   -d "$BODY"

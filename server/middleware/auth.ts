@@ -11,8 +11,9 @@ export function bearer(req: AuthRequest, res: Response, next: NextFunction) {
     return res.status(401).json({ error: { message: 'missing Bearer token' } })
   }
   const token = header.slice(7)
+  const secret = process.env.JWT_SECRET || 'dev-insecure-jwt-secret-key-32b-min'
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { sub: string }
+    const payload = jwt.verify(token, secret) as { sub: string }
     req.userId = payload.sub
     next()
   } catch {

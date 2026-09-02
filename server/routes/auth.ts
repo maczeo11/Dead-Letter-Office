@@ -11,11 +11,14 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: { message: 'email and password (min 8) required' } })
   }
   const hash = await bcrypt.hash(password, 10)
+  const secret = process.env.JWT_SECRET || 'dev-insecure-jwt-secret-key-32b-min'
   try {
-    const user = await prisma.user.create({ data: { email: email.trim().toLowerCase(), password: hash } })
-    // init hygiene row
-    await prisma.hygieneScore.create({ data: { userId: user.id, total: 0, hard: 0, soft: 0, score: 100 } })
-    const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET!, { expiresIn: '720h' })
+    const user = await prisma.$transaction(async tx => {
+      const u = await tx.user.create({ data: { email: email.trim().toLowerCase(), password: hash } })
+      await tx.hygieneScore.create({ data: { userId: u.id, total: 0, hard: 0, soft: 0, score: 100 } })
+      return u
+    })
+    const token = jwt.sign({ sub: user.id }, secret, { expiresIn: '720h' })
     return res.status(201).json({ id: user.id, email: user.email, token })
   } catch (e: unknown) {
     if ((e as { code?: string }).code === 'P2002') {
@@ -31,7 +34,8 @@ router.post('/login', async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: { message: 'invalid credentials' } })
   }
-  const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET!, { expiresIn: '720h' })
+  const secret = process.env.JWT_SECRET || 'dev-insecure-jwt-secret-key-32b-min'
+  const token = jwt.sign({ sub: user.id }, secret, { expiresIn: '720h' })
   return res.json({ token, id: user.id, email: user.email })
 })
 

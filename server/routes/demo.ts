@@ -164,7 +164,7 @@ router.post('/simulate-webhook', bearer, async (req: AuthRequest, res) => {
   }
 
   const rawBody = JSON.stringify(bodyObj)
-  const secret = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-hmac-256'
+  const secret = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-me'
   const sig = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
 
   // Enqueue as a verified bounce event into the queue

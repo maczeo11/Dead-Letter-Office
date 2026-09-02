@@ -8,7 +8,7 @@ export default function HealthBar() {
   const base = getApiBase()
 
   useEffect(() => {
-    fetch(`${base.replace('/api', '')}/health/ready`)
+    fetch(`${base.replace(/\/api\/?$/, '')}/health/ready`)
       .then(r => r.json().then(j => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
         setOk(ok)

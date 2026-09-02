@@ -1,5 +1,13 @@
 // Live backend only — relative /api or custom NEXT_PUBLIC_API_BASE
-export const getApiBase = () => process.env.NEXT_PUBLIC_API_BASE || '/api'
+export const getApiBase = (): string => {
+  const raw = process.env.NEXT_PUBLIC_API_BASE || '/api'
+  const trimmed = raw.replace(/\/+$/, '')
+  // If full http(s) origin was provided without /api path, append /api
+  if (trimmed.startsWith('http') && !trimmed.endsWith('/api')) {
+    return `${trimmed}/api`
+  }
+  return trimmed
+}
 
 export async function request<T>(path: string, opts: RequestInit & { token?: string } = {}): Promise<T> {
   const base = getApiBase()

@@ -101,8 +101,14 @@ async function applyBounce(p: BouncePayload): Promise<'applied' | 'duplicate' | 
   return 'applied'
 }
 
+let lastRequeueAt = 0
+
 export async function processBounceEvents() {
-  await requeueStaleClaims()
+  // Only check stale claims periodically (e.g. once per minute) rather than every tick
+  if (Date.now() - lastRequeueAt > STALE_CLAIM_MS) {
+    lastRequeueAt = Date.now()
+    await requeueStaleClaims().catch(err => console.error('Stale claims requeue failed', err))
+  }
 
   const rows = await claimBatch()
   let applied = 0
@@ -131,16 +137,30 @@ export async function processBounceEvents() {
   return { claimed: rows.length, applied }
 }
 
-export function startWorker(intervalMs = 2000) {
+export function startWorker(initialIntervalMs = 2000, maxIntervalMs = 20000) {
+  let currentInterval = initialIntervalMs
   let running = false
-  setInterval(() => {
-    if (running) return // don't overlap ticks — one drain at a time per process
+
+  const tick = async () => {
+    if (running) return
     running = true
-    processBounceEvents()
-      .catch(console.error)
-      .finally(() => {
-        running = false
-      })
-  }, intervalMs)
-  console.log(`bounce worker every ${intervalMs}ms — FOR UPDATE SKIP LOCKED`)
+    try {
+      const { claimed } = await processBounceEvents()
+      if (claimed > 0) {
+        currentInterval = initialIntervalMs // busy, stay responsive
+      } else {
+        currentInterval = Math.min(Math.round(currentInterval * 1.5), maxIntervalMs) // back off to save DB compute
+      }
+    } catch (err) {
+      console.error('bounce worker tick error', err)
+      currentInterval = Math.min(Math.round(currentInterval * 1.5), maxIntervalMs)
+    } finally {
+      running = false
+      setTimeout(tick, currentInterval)
+    }
+  }
+
+  setTimeout(tick, initialIntervalMs)
+  console.log(`bounce worker started (adaptive backoff ${initialIntervalMs}ms-${maxIntervalMs}ms) — FOR UPDATE SKIP LOCKED`)
 }
+
