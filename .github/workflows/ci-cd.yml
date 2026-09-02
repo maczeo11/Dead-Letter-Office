@@ -43,6 +43,6 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        run: railway up --service dead-letter-office -y --detach
+        run: railway up --service 9aa7f601-e96c-41aa-afa5-784dce8f9c0f -y --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
