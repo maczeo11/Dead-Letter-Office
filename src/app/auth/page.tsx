@@ -69,10 +69,49 @@ export default function AuthPage() {
 
             {err && <p className="text-red-400 text-xs">{err}</p>}
 
-            <button type="submit" disabled={loading} className="w-full bg-white text-black py-2.5 uppercase text-xs tracking-widest disabled:opacity-50">
-              {loading ? '...' : mode === 'login' ? 'Login' : 'Register'}
+            <button type="submit" disabled={loading} className="w-full bg-white text-black py-2.5 uppercase text-xs tracking-widest disabled:opacity-50 font-bold hover:bg-zinc-200 transition">
+              {loading ? 'Processing...' : mode === 'login' ? 'Login' : 'Register'}
             </button>
           </form>
+
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <button
+              type="button"
+              onClick={async () => {
+                setErr(null)
+                setLoading(true)
+                try {
+                  const demoEmail = 'demo@outboxlabs.ai'
+                  const demoPass = 'password123'
+                  let res = await fetch(`${getApiBase()}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: demoEmail, password: demoPass }),
+                  })
+                  if (!res.ok) {
+                    res = await fetch(`${getApiBase()}/auth/register`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: demoEmail, password: demoPass }),
+                    })
+                  }
+                  const j = await res.json()
+                  if (!res.ok) throw new Error(j.error?.message || 'Demo login failed')
+                  localStorage.setItem('token', j.token)
+                  localStorage.setItem('user', JSON.stringify({ id: j.id, email: j.email }))
+                  router.push('/')
+                } catch (e) {
+                  setErr((e as Error).message)
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+              className="w-full border border-[#c8553d]/40 text-[#c8553d] hover:bg-[#c8553d]/10 py-2 text-xs uppercase tracking-widest transition"
+            >
+              ⚡ 1-Click Demo Login
+            </button>
+          </div>
         </div>
 
         <p className="text-center text-xs text-zinc-600 mt-4">JWT stored in localStorage → Bearer header</p>
