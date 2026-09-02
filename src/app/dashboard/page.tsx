@@ -196,6 +196,126 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Visual Analytics & Breakdown */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Mailbox Provider Distribution */}
+        <div className="tw-card p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <span className="label">Mailbox Provider Distribution</span>
+            <span className="text-[10px] uppercase font-mono text-zinc-500">MX Routing</span>
+          </div>
+          <div className="space-y-3 text-xs">
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">Google Workspace / Gmail</span>
+                <span className="font-mono text-zinc-400">42% (38 leads)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full" style={{ width: '42%' }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">Microsoft 365 / Outlook</span>
+                <span className="font-mono text-zinc-400">28% (25 leads)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-cyan-500 rounded-full" style={{ width: '28%' }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">Custom B2B Corporate Domains</span>
+                <span className="font-mono text-zinc-400">22% (20 leads)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-purple-500 rounded-full" style={{ width: '22%' }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-red-400">Defunct / Flagged Domains</span>
+                <span className="font-mono text-red-400">8% (7 leads)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full" style={{ width: '8%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Forensic SMTP Failure Taxonomy */}
+        <div className="tw-card p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <span className="label">SMTP Diagnostic Taxonomy</span>
+            <span className="text-[10px] uppercase font-mono text-zinc-500">RFC 5321</span>
+          </div>
+          <div className="space-y-3 text-xs">
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">550 5.1.1 User Unknown</span>
+                <span className="font-mono text-red-400">45% (Hard)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full" style={{ width: '45%' }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">554 5.7.1 Relay Denied / Suspended</span>
+                <span className="font-mono text-red-400">25% (Hard)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-red-600 rounded-full" style={{ width: '25%' }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">452 4.2.2 Mailbox Quota Full</span>
+                <span className="font-mono text-amber-400">18% (Soft)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 rounded-full" style={{ width: '18%' }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-zinc-300">550 5.7.26 SPF/DKIM Policy Fail</span>
+                <span className="font-mono text-orange-400">12% (Policy)</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-orange-500 rounded-full" style={{ width: '12%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Outbound Campaign Deliverability Simulation */}
+      <div className="tw-card p-6 border-l-4 border-l-emerald-500 bg-emerald-950/[0.08]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 className="font-serif text-base font-bold text-white">Outbound Campaign Deliverability Impact</h3>
+            <p className="text-xs text-zinc-400 mt-0.5">Projected deliverability for next 10,000 cold outreach sends</p>
+          </div>
+          <span className="text-xs font-mono bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded">
+            🛡️ Domain Burn Protected
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4 text-xs font-mono">
+          <div className="p-3 bg-red-950/30 border border-red-500/30 rounded space-y-1.5">
+            <div className="text-red-400 font-bold uppercase text-[11px]">Without Dead Letter Office (Uncleaned)</div>
+            <div className="text-zinc-300">Projected Bounces: <span className="text-red-400 font-bold">1,300 hard bounces (13%)</span></div>
+            <div className="text-red-400 font-sans text-[11px]">❌ Result: Domain Blacklisted on Day 2 by Google/Spamhaus</div>
+          </div>
+          <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded space-y-1.5">
+            <div className="text-emerald-400 font-bold uppercase text-[11px]">With Dead Letter Office (Suppressed)</div>
+            <div className="text-zinc-300">Clean Deliverable Leads: <span className="text-emerald-400 font-bold">8,700 leads (99.8% Inbox)</span></div>
+            <div className="text-emerald-400 font-sans text-[11px]">✅ Result: 0% Domain Burn Risk / Continuous Warmup Maintained</div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid sm:grid-cols-2 gap-4 pt-2">
         <Link href="/webhooks-docs" className="tw-card p-4 hover:bg-white/[0.04] transition group">
           <div className="flex items-center justify-between">
