@@ -1,5 +1,5 @@
-// Live backend only — no fake fallback
-export const getApiBase = () => process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001/api'
+// Live backend only — relative /api or custom NEXT_PUBLIC_API_BASE
+export const getApiBase = () => process.env.NEXT_PUBLIC_API_BASE || '/api'
 
 export async function request<T>(path: string, opts: RequestInit & { token?: string } = {}): Promise<T> {
   const base = getApiBase()

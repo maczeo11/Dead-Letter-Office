@@ -3,8 +3,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
 COPY prisma ./prisma
+RUN npm ci
 RUN npx prisma generate
 
 FROM deps AS build
@@ -27,6 +27,7 @@ COPY --from=build /app/postcss.config.mjs ./
 
 EXPOSE 3000 3001
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=3000
+ENV API_PORT=3001
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npx tsx server/index.ts & npx next start -p 3000"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && API_PORT=3001 npx tsx server/index.ts & npx next start -p 3000"]

@@ -46,7 +46,7 @@ app.get('/api/webhooks-docs', (_req, res) => {
   })
 })
 
-const port = parseInt(process.env.PORT || '3001')
+const port = parseInt(process.env.API_PORT || '3001')
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
     console.log(`API listening on :${port} — live backend only`)
