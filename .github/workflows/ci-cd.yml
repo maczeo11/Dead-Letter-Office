@@ -29,21 +29,3 @@ jobs:
 
       - name: Build Next.js frontend & backend
         run: npm run build
-
-  deploy-railway:
-    name: Deploy Backend to Railway
-    needs: validate-and-build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: |
-          railway up --service dead-letter-office -y --detach || (railway link --project 975b8a2e-54e1-4b68-9f72-9f242fb188ad --service dead-letter-office --environment production && railway up -y --detach)
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
