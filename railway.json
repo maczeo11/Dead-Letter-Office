@@ -5,7 +5,7 @@
     "buildCommand": "npm install && npx prisma generate"
   },
   "deploy": {
-    "startCommand": "npm run server:prod",
+    "startCommand": "npx prisma db push --skip-generate && npx tsx server/index.ts",
     "healthcheckPath": "/health/live",
     "restartPolicyType": "ON_FAILURE"
   }
