@@ -40,3 +40,4 @@ next-env.d.ts
 
 # agent tooling - generated locally, not part of the project
 CLAUDE.md
+AGENTS.md
