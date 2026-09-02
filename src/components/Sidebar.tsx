@@ -17,14 +17,24 @@ export default function Sidebar() {
   const [user, setUser] = useState<{ email: string } | null>(null)
 
   useEffect(() => {
-    const raw = localStorage.getItem('user')
-    if (raw) setUser(JSON.parse(raw))
-  }, [])
+    const syncUser = () => {
+      const raw = localStorage.getItem('user')
+      setUser(raw ? JSON.parse(raw) : null)
+    }
+    syncUser()
+    window.addEventListener('auth-change', syncUser)
+    window.addEventListener('storage', syncUser)
+    return () => {
+      window.removeEventListener('auth-change', syncUser)
+      window.removeEventListener('storage', syncUser)
+    }
+  }, [path])
 
   function logout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
+    window.dispatchEvent(new Event('auth-change'))
     router.push('/auth')
   }
 

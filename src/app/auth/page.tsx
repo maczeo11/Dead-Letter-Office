@@ -25,6 +25,7 @@ export default function AuthPage() {
       if (!res.ok) throw new Error(j.error?.message || 'failed')
       localStorage.setItem('token', j.token)
       localStorage.setItem('user', JSON.stringify({ id: j.id, email: j.email }))
+      window.dispatchEvent(new Event('auth-change'))
       router.push('/')
     } catch (e) {
       setErr((e as Error).message)
@@ -99,6 +100,7 @@ export default function AuthPage() {
                   if (!res.ok) throw new Error(j.error?.message || 'Demo login failed')
                   localStorage.setItem('token', j.token)
                   localStorage.setItem('user', JSON.stringify({ id: j.id, email: j.email }))
+                  window.dispatchEvent(new Event('auth-change'))
                   router.push('/')
                 } catch (e) {
                   setErr((e as Error).message)
