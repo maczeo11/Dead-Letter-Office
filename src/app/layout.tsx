@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Dead Letter Office — Bounce Autopsy Lab",
-  description: "Forensic hygiene engine for outbound email — Next.js TS + Tailwind + Prisma MySQL",
+  description: "Forensic hygiene engine for outbound email — Next.js + Express + Prisma PostgreSQL (MySQL-swappable) + HMAC + SKIP LOCKED",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <HealthBar />
             <main className="flex-1">{children}</main>
             <footer className="border-t border-white/10 py-4 text-center">
-              <p className="label">Go + Postgres + Redis + Kafka • Next TS + Tailwind + MySQL Prisma + REST • HMAC + SKIP LOCKED</p>
+              <p className="label">Node + Neon Postgres (MySQL-swappable) + Prisma • Next.js + Tailwind + REST • HMAC + SKIP LOCKED</p>
             </footer>
           </div>
         </div>

@@ -12,10 +12,16 @@ export default function LeadsPage() {
   const [filter, setFilter] = useState('ALL')
   const [search, setSearch] = useState('')
   const [err, setErr] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) { setErr('No token — login first'); return }
+    if (!token) {
+      setErr('No token — login first')
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (filter !== 'ALL') params.set('status', filter)
     if (search) params.set('search', search)
@@ -28,6 +34,7 @@ export default function LeadsPage() {
         setErr(null)
       })
       .catch(e => setErr((e as Error).message))
+      .finally(() => setLoading(false))
   }, [page, filter, search])
 
   const totalPages = Math.ceil(total / 20)
@@ -42,7 +49,7 @@ export default function LeadsPage() {
         <div className="flex gap-2">
           {['ALL', 'VALID', 'BOUNCED', 'RISKY'].map(s => (
             <button key={s} onClick={() => { setFilter(s); setPage(1) }}
-              className={`px-3 py-1.5 text-xs uppercase tracking-widest ${filter === s ? 'bg-white text-black' : 'border border-white/20 text-zinc-400 hover:text-white'}`}>
+              className={`px-3 py-1.5 text-xs uppercase tracking-widest transition ${filter === s ? 'bg-white text-black font-bold' : 'border border-white/20 text-zinc-400 hover:text-white hover:bg-white/5'}`}>
               {s}
             </button>
           ))}
@@ -54,40 +61,65 @@ export default function LeadsPage() {
           className="w-full max-w-sm bg-white/[0.04] border border-white/10 px-4 py-2 text-sm font-mono placeholder:text-zinc-600 focus:outline-none focus:border-white/30" />
       </div>
 
-      {err && <p className="mt-4 text-red-400 text-sm">{err}</p>}
+      {err && <p className="mt-4 text-red-400 text-sm">⚠️ {err}</p>}
 
       <div className="mt-4 tw-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-white/[0.03] text-xs uppercase tracking-widest">
               <tr>
-                <th className="text-left px-5 py-2">Email</th>
-                <th className="text-left px-5 py-2">Status</th>
-                <th className="text-left px-5 py-2">Reason</th>
-                <th className="text-left px-5 py-2">Soft</th>
-                <th className="text-left px-5 py-2"></th>
+                <th className="text-left px-5 py-2.5">Email</th>
+                <th className="text-left px-5 py-2.5">Status</th>
+                <th className="text-left px-5 py-2.5">Reason</th>
+                <th className="text-left px-5 py-2.5">Soft</th>
+                <th className="text-left px-5 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
-              {leads.map(l => (
-                <tr key={l.id} className="border-t border-white/10 hover:bg-white/[0.03]">
-                  <td className="px-5 py-3 font-mono text-xs">{l.email}</td>
-                  <td className="px-5 py-3">
-                    <span className={`tw-badge ${l.status === 'BOUNCED' ? 'border-red-500 text-red-400 rotate-1' : l.status === 'RISKY' ? 'border-amber-500 text-amber-400' : 'border-white/20'}`}>
-                      {l.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 font-mono text-xs text-zinc-400 max-w-xs truncate">{l.reason || '—'}</td>
-                  <td className="px-5 py-3 text-xs text-zinc-500">{l.softCount}</td>
-                  <td className="px-5 py-3">
-                    <Link href={`/leads/${l.id}`} className="text-xs uppercase tracking-widest border-b border-[#c8553d] pb-0.5">
-                      autopsy
-                    </Link>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="border-t border-white/10 animate-pulse">
+                    <td className="px-5 py-4">
+                      <div className="h-3.5 bg-white/10 rounded w-48" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="h-5 bg-white/10 rounded w-16" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="h-3.5 bg-white/10 rounded w-64" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="h-3.5 bg-white/10 rounded w-6" />
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="h-3.5 bg-white/10 rounded w-12" />
+                    </td>
+                  </tr>
+                ))
+              ) : leads.length > 0 ? (
+                leads.map(l => (
+                  <tr key={l.id} className="border-t border-white/10 hover:bg-white/[0.03] transition">
+                    <td className="px-5 py-3 font-mono text-xs">{l.email}</td>
+                    <td className="px-5 py-3">
+                      <span className={`tw-badge ${l.status === 'BOUNCED' ? 'border-red-500 text-red-400 rotate-1' : l.status === 'RISKY' ? 'border-amber-500 text-amber-400' : 'border-white/20'}`}>
+                        {l.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 font-mono text-xs text-zinc-400 max-w-xs truncate">{l.reason || '—'}</td>
+                    <td className="px-5 py-3 text-xs text-zinc-500">{l.softCount}</td>
+                    <td className="px-5 py-3">
+                      <Link href={`/leads/${l.id}`} className="text-xs uppercase tracking-widest border-b border-[#c8553d] pb-0.5 hover:text-[#c8553d] transition">
+                        autopsy →
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-zinc-500 text-xs">
+                    No matching leads found for filter "{filter}".
                   </td>
                 </tr>
-              ))}
-              {leads.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-12 text-center text-zinc-500">No leads found</td></tr>
               )}
             </tbody>
           </table>
@@ -96,8 +128,8 @@ export default function LeadsPage() {
           <div className="flex items-center justify-between px-5 py-3 border-t border-white/10 text-xs text-zinc-500">
             <span>Page {page} of {totalPages} · {total} leads</span>
             <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border border-white/10 disabled:opacity-30">← Prev</button>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border border-white/10 disabled:opacity-30">Next →</button>
+              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 border border-white/10 disabled:opacity-30 hover:bg-white/5 transition">← Prev</button>
+              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 border border-white/10 disabled:opacity-30 hover:bg-white/5 transition">Next →</button>
             </div>
           </div>
         )}

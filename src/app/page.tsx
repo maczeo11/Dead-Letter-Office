@@ -11,16 +11,25 @@ export default function Overview() {
   const [total, setTotal] = useState(0)
   const [token, setToken] = useState<string | null>(null)
   const [auth, setAuth] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const t = localStorage.getItem('token')
     setToken(t)
-    if (!t) return
+    if (!t) {
+      setLoading(false)
+      return
+    }
     setAuth(true)
-    request<Hygiene>('/hygiene', { token: t }).then(setH).catch(() => {})
-    request<{ leads: Lead[]; total: number }>('/leads?status=ALL&page=1', { token: t })
-      .then(j => { setLeads(j.leads); setTotal(j.total) })
-      .catch(() => {})
+    setLoading(true)
+    Promise.all([
+      request<Hygiene>('/hygiene', { token: t }).then(setH).catch(() => {}),
+      request<{ leads: Lead[]; total: number }>('/leads?status=ALL&page=1', { token: t })
+        .then(j => { setLeads(j.leads); setTotal(j.total) })
+        .catch(() => {})
+    ]).finally(() => {
+      setLoading(false)
+    })
   }, [])
 
   const bounced = leads.filter(l => l.status === 'BOUNCED').length
@@ -143,20 +152,42 @@ export default function Overview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leads.slice(0, 5).map(l => (
-                    <tr key={l.id} className="border-t border-white/10 hover:bg-white/[0.03]">
-                      <td className="px-5 py-3 font-mono text-xs">{l.email}</td>
-                      <td className="px-5 py-3">
-                        <span className={`tw-badge ${l.status === 'BOUNCED' ? 'border-red-500 text-red-400 rotate-1' : l.status === 'RISKY' ? 'border-amber-500 text-amber-400' : 'border-white/20'}`}>
-                          {l.status}
-                        </span>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-t border-white/10 animate-pulse">
+                        <td className="px-5 py-4">
+                          <div className="h-3.5 bg-white/10 rounded w-48" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="h-5 bg-white/10 rounded w-16" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="h-3.5 bg-white/10 rounded w-56" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="h-3.5 bg-white/10 rounded w-6" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : leads.length > 0 ? (
+                    leads.slice(0, 5).map(l => (
+                      <tr key={l.id} className="border-t border-white/10 hover:bg-white/[0.03] transition">
+                        <td className="px-5 py-3 font-mono text-xs">{l.email}</td>
+                        <td className="px-5 py-3">
+                          <span className={`tw-badge ${l.status === 'BOUNCED' ? 'border-red-500 text-red-400 rotate-1' : l.status === 'RISKY' ? 'border-amber-500 text-amber-400' : 'border-white/20'}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 font-mono text-xs text-zinc-400">{l.reason || '—'}</td>
+                        <td className="px-5 py-3 text-xs text-zinc-500">{l.softCount}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-zinc-500 text-xs">
+                        No leads found — click "Seed Forensic Bounces & Autopsies" above or import CSV.
                       </td>
-                      <td className="px-5 py-3 font-mono text-xs text-zinc-400">{l.reason || '—'}</td>
-                      <td className="px-5 py-3 text-xs text-zinc-500">{l.softCount}</td>
                     </tr>
-                  ))}
-                  {leads.length === 0 && (
-                    <tr><td colSpan={4} className="px-5 py-8 text-center text-zinc-500">No leads — import CSV or POST /demo/seed</td></tr>
                   )}
                 </tbody>
               </table>

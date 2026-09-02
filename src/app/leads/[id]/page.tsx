@@ -20,8 +20,35 @@ export default function LeadAutopsy() {
       .catch(e => setErr((e as Error).message))
   }, [id])
 
-  if (err) return <div className="max-w-2xl mx-auto px-6 py-12"><p className="text-red-400">{err}</p></div>
-  if (!lead) return <div className="max-w-2xl mx-auto px-6 py-12"><p className="text-zinc-500">Loading autopsy…</p></div>
+  if (err) return <div className="max-w-2xl mx-auto px-6 py-12"><p className="text-red-400">⚠️ {err}</p></div>
+  if (!lead) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-8 animate-pulse space-y-6">
+        <div className="h-3 bg-white/10 rounded w-28" />
+        <div className="flex items-start justify-between border-b border-white/10 pb-4">
+          <div className="space-y-2">
+            <div className="h-3 bg-white/10 rounded w-24" />
+            <div className="h-7 bg-white/10 rounded w-64" />
+          </div>
+          <div className="h-6 bg-white/10 rounded w-20" />
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="tw-card p-4 space-y-2">
+            <div className="h-3 bg-white/10 rounded w-20" />
+            <div className="h-6 bg-white/10 rounded w-12" />
+          </div>
+          <div className="tw-card p-4 space-y-2">
+            <div className="h-3 bg-white/10 rounded w-20" />
+            <div className="h-6 bg-white/10 rounded w-28" />
+          </div>
+          <div className="tw-card p-4 space-y-2">
+            <div className="h-3 bg-white/10 rounded w-20" />
+            <div className="h-6 bg-white/10 rounded w-24" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">

@@ -94,7 +94,52 @@ export default function Dashboard() {
   }
 
   if (err && !h) return <div className="max-w-xl mx-auto px-6 py-8"><p className="text-red-400 text-sm">⚠️ {err}</p></div>
-  if (!h) return <div className="max-w-xl mx-auto px-6 py-8"><p className="text-zinc-500">Loading list hygiene metrics…</p></div>
+
+  if (!h) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6 animate-pulse">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="space-y-2">
+            <div className="h-3 bg-white/10 rounded w-24" />
+            <div className="h-8 bg-white/10 rounded w-64" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-8 bg-white/10 rounded w-36" />
+            <div className="h-8 bg-white/10 rounded w-32" />
+          </div>
+        </div>
+
+        <div className="tw-card p-6 border-l-4 border-l-white/20 space-y-4">
+          <div className="flex items-end justify-between">
+            <div className="space-y-2">
+              <div className="h-3 bg-white/10 rounded w-28" />
+              <div className="h-14 bg-white/10 rounded w-32" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-white/10 rounded w-20" />
+              <div className="h-3 bg-white/10 rounded w-24" />
+            </div>
+          </div>
+          <div className="h-3 bg-white/10 rounded-full w-full" />
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="tw-card p-5 space-y-3">
+            <div className="h-3 bg-white/10 rounded w-24" />
+            <div className="h-8 bg-white/10 rounded w-16" />
+          </div>
+          <div className="tw-card p-5 space-y-3">
+            <div className="h-3 bg-white/10 rounded w-28" />
+            <div className="h-8 bg-white/10 rounded w-16" />
+          </div>
+          <div className="tw-card p-5 space-y-3">
+            <div className="h-3 bg-white/10 rounded w-28" />
+            <div className="h-8 bg-white/10 rounded w-16" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const scoreColor = h.score >= 90 ? 'bg-emerald-500' : h.score >= 70 ? 'bg-amber-500' : 'bg-red-500'
   const riskPct = h.total > 0 ? Math.round(((h.hard + h.soft) / h.total) * 100) : 0

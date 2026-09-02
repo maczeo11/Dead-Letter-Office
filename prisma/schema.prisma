@@ -1,9 +1,14 @@
+// HEXAGONAL — swappable DB: change `provider` to "mysql" and swap DATABASE_URL to mysql://...
+// No business code changes needed; see server/lib/db.ts (getDbProvider/quoted) and .env.example
+// Postgres (Neon/Railway): postgresql://user:pass@host/db?sslmode=require
+// MySQL (Railway/PlanetScale): mysql://user:pass@host:3306/db
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
+  // provider = "mysql" // ← uncomment for MySQL, then: npx prisma generate && npx prisma db push
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }

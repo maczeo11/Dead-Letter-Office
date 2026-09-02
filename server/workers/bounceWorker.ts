@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { claimSql } from '../lib/db.js'
 import { computeScore, nextLeadStatus } from '../lib/score.js'
 
 type BounceEventRow = { id: string; payload: string }
@@ -25,9 +26,7 @@ export const MAX_ATTEMPTS = 5
  */
 async function claimBatch(): Promise<BounceEventRow[]> {
   return prisma.$transaction(async tx => {
-    const found = await tx.$queryRaw<BounceEventRow[]>`
-      SELECT id, payload FROM "BounceEvent" WHERE status = 'PENDING'
-      ORDER BY "createdAt" ASC LIMIT ${CLAIM_BATCH} FOR UPDATE SKIP LOCKED`
+    const found = await tx.$queryRawUnsafe<BounceEventRow[]>(claimSql(CLAIM_BATCH))
     if (found.length === 0) return []
     await tx.bounceEvent.updateMany({
       where: { id: { in: found.map(r => r.id) } },
