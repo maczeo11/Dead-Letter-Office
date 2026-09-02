@@ -44,7 +44,6 @@ jobs:
 
       - name: Deploy to Railway
         run: |
-          railway link --project 975b8a2e-54e1-4b68-9f72-9f242fb188ad --service dead-letter-office --environment production
-          railway up -y --detach
+          railway up --service dead-letter-office -y --detach || (railway link --project 975b8a2e-54e1-4b68-9f72-9f242fb188ad --service dead-letter-office --environment production && railway up -y --detach)
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
