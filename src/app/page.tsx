@@ -42,9 +42,56 @@ export default function Overview() {
       </div>
 
       {!auth && (
-        <div className="mt-8 tw-card p-6 text-center">
-          <p className="text-zinc-400">Register or login to start.</p>
-          <p className="text-xs text-zinc-500 mt-2">POST /api/auth/register → JWT → paste token in localStorage</p>
+        <div className="mt-8 tw-card p-8 text-center space-y-4 max-w-xl mx-auto border-l-4 border-l-[#c8553d]">
+          <h2 className="font-serif text-2xl">Cold-Outbound Deliverability & List Hygiene</h2>
+          <p className="text-xs text-zinc-400">
+            Outbound marketing lists rot by 15-20% every 6 months. This platform consumes raw webhook bounces, executes
+            forensic autopsies, quarantines bad mailboxes, and exports suppression lists so your sending domain never gets burned.
+          </p>
+          <div className="pt-2">
+            <a
+              href="/auth"
+              className="inline-block bg-white text-black font-bold py-2.5 px-6 uppercase text-xs tracking-widest hover:bg-zinc-200 transition"
+            >
+              ⚡ 1-Click Demo Login →
+            </a>
+          </div>
+        </div>
+      )}
+
+      {auth && (
+        <div className="mt-4 flex flex-wrap gap-2 justify-end">
+          <button
+            onClick={async () => {
+              if (!token) return
+              const res = await fetch(`${getApiBase()}/demo/seed`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              const j = await res.json()
+              if (j.ok) {
+                request<Hygiene>('/hygiene', { token }).then(setH).catch(() => {})
+                request<{ leads: Lead[]; total: number }>('/leads?status=ALL&page=1', { token })
+                  .then(j => { setLeads(j.leads); setTotal(j.total) })
+                  .catch(() => {})
+              }
+            }}
+            className="border border-[#c8553d]/60 text-[#c8553d] hover:bg-[#c8553d]/10 px-3 py-1.5 text-xs uppercase tracking-widest transition"
+          >
+            ⚡ Seed Forensic Bounces & Autopsies
+          </button>
+          <a
+            href="/import"
+            className="border border-white/20 text-zinc-300 hover:text-white hover:bg-white/5 px-3 py-1.5 text-xs uppercase tracking-widest transition"
+          >
+            ↥ Import CSV
+          </a>
+          <a
+            href="/webhooks-docs"
+            className="border border-white/20 text-zinc-300 hover:text-white hover:bg-white/5 px-3 py-1.5 text-xs uppercase tracking-widest transition"
+          >
+            🚀 Webhook Sandbox
+          </a>
         </div>
       )}
 

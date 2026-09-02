@@ -1,0 +1,25 @@
+email,first_name,last_name,company,title
+ceo@stealth-dead-ai.dev,Arthur,Pendelton,Stealth AI,Founder & CEO
+alex.vance@deadcorp.io,Alex,Vance,DeadCorp,VP Engineering
+sundar.p@alphabet.com,Sundar,Pichai,Alphabet,CEO
+sarah.crook@defunctfin.com,Sarah,Crook,Defunct Finance,Director
+satya.n@microsoft.com,Satya,Nadella,Microsoft,Executive
+overquota.mark@cloudscale.io,Mark,Zimmer,CloudScale,DevOps Lead
+sam.altman@openai.com,Sam,Altman,OpenAI,CEO
+john@vaporware-saas.biz,John,Doe,Vaporware SaaS,Head of Sales
+spammer@burner-domain.cc,Victor,Blunt,Burner,Operations
+jensen.huang@nvidia.com,Jensen,Huang,NVIDIA,CEO
+throttled.elena@fastcorp.net,Elena,Rostova,FastCorp,Product Manager
+bhanu.teja@gitam.edu,Bhanu,Teja,GITAM,Engineer
+auth_fail@unverified-relay.net,Bob,Williams,Relay Services,IT Admin
+demis.hassabis@deepmind.com,Demis,Hassabis,Google DeepMind,CEO
+blacklisted@spamcop-flagged.org,Charles,Spam,Flagged Org,Marketing
+tim.cook@apple.com,Tim,Cook,Apple,CEO
+timeout.david@slowmail.org,David,Slow,SlowMail,CTO
+diana.prince@themiscira.gov,Diana,Prince,Themiscira,Ambassador
+loop@broken-mx-routing.com,Edward,Nigma,Broken Routing,System Admin
+bruce.wayne@waynecorp.com,Bruce,Wayne,Wayne Enterprises,Chairman
+tempfail.priya@unstable-host.in,Priya,Sharma,Unstable Hosting,Tech Lead
+peter.parker@dailybugle.nyc,Peter,Parker,Daily Bugle,Photographer
+storagefull.clark@metropolis-daily.news,Clark,Kent,Daily Planet,Journalist
+tony.stark@starkindustries.com,Tony,Stark,Stark Industries,Chief Architect
