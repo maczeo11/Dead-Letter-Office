@@ -1,6 +1,10 @@
 // Live backend only — relative /api or custom NEXT_PUBLIC_API_BASE
 export const getApiBase = (): string => {
-  const raw = process.env.NEXT_PUBLIC_API_BASE || '/api'
+  let raw = process.env.NEXT_PUBLIC_API_BASE || '/api'
+  // If the old dead Railway URL is baked into Vercel env, fallback to /api (proxied via vercel.json to EC2)
+  if (raw.includes('railway.app')) {
+    raw = '/api'
+  }
   const trimmed = raw.replace(/\/+$/, '')
   // If full http(s) origin was provided without /api path, append /api
   if (trimmed.startsWith('http') && !trimmed.endsWith('/api')) {
